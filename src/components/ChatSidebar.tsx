@@ -18,7 +18,7 @@ import newIcon from "../assets/add.png";
 
 type ChatSidebarProps = {
   selectedUser: User | null;
-  onSelectUser: (user: User) => void;
+  onSelectUser: (user: User, chatId: string) => void;
   onProfileClick: () => void;
   onNewUserClick: () => void;
   onUsersLoaded?: (users: User[]) => void;
@@ -71,34 +71,29 @@ const ChatSidebar = ({
             const otherUserId = data.participants.find(
               (id) => id !== currentUserId
             )!;
-
             const userSnap = await fetchUser(otherUserId);
-
-            return {
-              chatId: d.id,
-              data,
-              user: userSnap,
-            };
+            return { chatId: d.id, data, user: userSnap };
           })
       );
 
       setChats(list);
-
-      if (onUsersLoaded) {
-        onUsersLoaded(list.map((c) => c.user));
-      }
+      if (onUsersLoaded) onUsersLoaded(list.map((c) => c.user));
     });
 
     return () => unsub();
   }, [currentUserId, onUsersLoaded]);
 
   const handleSelect = async (chatId: string, user: User) => {
-    onSelectUser(user);
+    onSelectUser(user, chatId);
     await updateDoc(doc(db, "chats", chatId), {
       [`participantInfo.${currentUserId}.unreadCount`]: 0,
       [`participantInfo.${currentUserId}.lastRead`]: Date.now(),
     });
   };
+
+  const tempOnlyUsers = tempUsers.filter(
+    (temp) => !chats.some((chat) => chat.user.id === temp.id)
+  );
 
   return (
     <div className="chat-sidebar">
@@ -110,27 +105,18 @@ const ChatSidebar = ({
       </div>
 
       <div className="chat-users-list">
-        {/* 🔹 PERMANENT CHATS */}
         {chats.map(({ chatId, data, user }) => {
-          const unread =
-            data.participantInfo[currentUserId]?.unreadCount || 0;
-
+          const unread = data.participantInfo[currentUserId]?.unreadCount || 0;
           return (
             <div
               key={chatId}
-              className={`chat-user ${selectedUser?.id === user.id ? "active" : ""
-                }`}
+              className={`chat-user ${selectedUser?.id === user.id ? "active" : ""}`}
               onClick={() => handleSelect(chatId, user)}
             >
               <div className="user-row">
-                <span>
-                  {user.firstName} {user.lastName}
-                </span>
-                {unread > 0 && (
-                  <span className="unread-badge">{unread}</span>
-                )}
+                <span>{user.firstName} {user.lastName}</span>
+                {unread > 0 && <span className="unread-badge">{unread}</span>}
               </div>
-
               <div className="last-message">
                 {data.lastMessage!.senderId === currentUserId && "You: "}
                 {data.lastMessage!.text}
@@ -139,25 +125,21 @@ const ChatSidebar = ({
           );
         })}
 
-        {/* 🔹 TEMP (SESSION-ONLY) USERS */}
-        {tempUsers.map((user) => (
-          <div
-            key={`temp-${user.id}`}
-            className={`chat-user temp ${selectedUser?.id === user.id ? "active" : ""
-              }`}
-            onClick={() => onSelectUser(user)}
-          >
-            <div className="user-row">
-              <span>
-                {user.firstName} {user.lastName}
-              </span>
+        {tempOnlyUsers.map((user) => {
+          const chatId = [currentUserId, user.id].sort().join("_");
+          return (
+            <div
+              key={`temp-${user.id}`}
+              className={`chat-user temp ${selectedUser?.id === user.id ? "active" : ""}`}
+              onClick={() => onSelectUser(user, chatId)}
+            >
+              <div className="user-row">
+                <span>{user.firstName} {user.lastName}</span>
+              </div>
+              <div className="last-message temp">No messages yet</div>
             </div>
-
-            <div className="last-message temp">
-              No messages yet
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="sidebar-footer">
@@ -165,7 +147,6 @@ const ChatSidebar = ({
           <img src={profileIcon} alt="Profile" />
           <span>Profile</span>
         </div>
-
         <div
           className="footer-item"
           onClick={async () => {

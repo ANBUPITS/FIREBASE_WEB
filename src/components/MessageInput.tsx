@@ -51,7 +51,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ receiverId }) => {
       const senderUsername = `${senderData?.firstName || ""} ${senderData?.lastName || ""}`.trim();
       const receiverUsername = `${receiverData?.firstName || ""} ${receiverData?.lastName || ""}`.trim();
 
-      // add message to subcollection
+
       await addDoc(collection(db, "chats", chatId, "messages"), {
         text: message.trim(),
         senderId,
@@ -59,8 +59,8 @@ const MessageInput: React.FC<MessageInputProps> = ({ receiverId }) => {
         createdAt: new Date(),
         timestamp: now,
         readstatus: {
-          [senderId]: true,      // sender has read their own message
-          [receiverId]: false    // receiver hasn't read it yet
+          [senderId]: true,      
+          [receiverId]: false   
         }
       });
 
@@ -68,7 +68,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ receiverId }) => {
       const chatSnap = await getDoc(chatRef);
 
       if (!chatSnap.exists()) {
-        // create new chat doc
+
         await setDoc(chatRef, {
           participants: [senderId, receiverId],
           participantInfo: {

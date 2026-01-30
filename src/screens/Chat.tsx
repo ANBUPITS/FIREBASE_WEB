@@ -21,11 +21,12 @@ const MAX_WIDTH = 480;
 
 const Chat = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [showProfile, setShowProfile] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
   const hasAutoSelected = useRef(false);
-
 
   const [tempSidebarUsers, setTempSidebarUsers] = useState<User[]>([]);
 
@@ -58,10 +59,14 @@ const Chat = () => {
       try {
         const userDoc = await getDoc(doc(db, "users", lastChatUserId));
         if (userDoc.exists()) {
-          setSelectedUser({
+          const user = {
             id: userDoc.id,
             ...(userDoc.data() as Omit<User, "id">),
-          });
+          };
+          setSelectedUser(user);
+          setSelectedChatId(
+            [getAuth().currentUser!.uid, user.id].sort().join("_")
+          );
         }
       } catch (err) {
         console.error("Failed to restore last chat", err);
@@ -89,8 +94,6 @@ const Chat = () => {
 
       snap.docs.forEach((docSnap) => {
         const data = docSnap.data();
-
-
         if (!data.lastMessage) return;
 
         data.participants.forEach((id: string) => {
@@ -104,31 +107,32 @@ const Chat = () => {
     fetchChatPartners();
   }, [currentUser?.uid]);
 
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
+    const chatId = [currentUser!.uid, user.id].sort().join("_");
+    setSelectedChatId(chatId);
+    setShowUserList(false);
+
+    setTempSidebarUsers((prev) => {
+      if (prev.find((u) => u.id === user.id)) return prev;
+      return [...prev, user];
+    });
+
+    localStorage.setItem("lastChatUserId", user.id);
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-sidebar-wrapper">
         <ChatSidebar
           selectedUser={selectedUser}
-          tempUsers={tempSidebarUsers} 
-          onSelectUser={(user) => {
-            setSelectedUser(user);
-            setShowUserList(false);
-
-
-            setTempSidebarUsers((prev) => {
-              if (prev.find((u) => u.id === user.id)) return prev;
-              return [...prev, user];
-            });
-
-            localStorage.setItem("lastChatUserId", user.id);
-          }}
+          tempUsers={tempSidebarUsers}
+          onSelectUser={handleSelectUser}
           onProfileClick={() => setShowProfile(true)}
           onNewUserClick={() => setShowUserList(true)}
           onUsersLoaded={(users: User[]) => {
             if (!currentUser) return;
-            const otherUsers = users.filter(
-              (u) => u.id !== currentUser.uid
-            );
+            const otherUsers = users.filter((u) => u.id !== currentUser.uid);
 
             if (
               !hasAutoSelected.current &&
@@ -136,8 +140,7 @@ const Chat = () => {
               otherUsers.length > 0 &&
               !localStorage.getItem("lastChatUserId")
             ) {
-              setSelectedUser(otherUsers[0]);
-              localStorage.setItem("lastChatUserId", otherUsers[0].id);
+              handleSelectUser(otherUsers[0]);
               hasAutoSelected.current = true;
             }
           }}
@@ -157,6 +160,7 @@ const Chat = () => {
         ) : (
           <ChatSlider
             selectedUser={selectedUser}
+            chatId={selectedChatId || ""}
             currentUserId={currentUser?.uid || ""}
             showProfile={showProfile}
             onBack={() => setShowProfile(false)}
@@ -170,20 +174,9 @@ const Chat = () => {
                 excludeIds={[
                   currentUser?.uid || "",
                   selectedUser?.id || "",
-                  ...existingChatUserIds, 
+                  ...existingChatUserIds,
                 ]}
-                onSelectUser={(user) => {
-                  setSelectedUser(user);
-                  setShowUserList(false);
-
-
-                  setTempSidebarUsers((prev) => {
-                    if (prev.find((u) => u.id === user.id)) return prev;
-                    return [...prev, user];
-                  });
-
-                  localStorage.setItem("lastChatUserId", user.id);
-                }}
+                onSelectUser={handleSelectUser}
                 onBack={() => setShowUserList(false)}
               />
             </div>
