@@ -164,6 +164,21 @@ body {
   font-weight: 600;
 }
 
+.input-group {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+input.error {
+    border-color: #ef4444;
+}
 
 @media (max-width: 768px) {
   .signin-container {
