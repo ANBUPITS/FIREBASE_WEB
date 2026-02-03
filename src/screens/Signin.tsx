@@ -6,8 +6,10 @@ import { auth } from "../firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { toast } from "react-toastify"
 
+type SigninProps = { onSubmit?: (email: string, password: string) => void; };
 
-const Signin = () => {
+
+const Signin : React.FC<SigninProps> = ({ onSubmit }) => {
 
     const [email, setEmail] = useState<string>("");
     const navigate = useNavigate();
@@ -17,6 +19,10 @@ const Signin = () => {
     const handleSigninbutton = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            if (onSubmit) {
+                onSubmit(email, password);
+                return;
+            }
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
